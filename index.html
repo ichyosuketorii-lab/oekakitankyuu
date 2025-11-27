@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプルなお絵かきアプリ (HTML完結)</title>
+
+    <style>
+        /* CSSコードをここに記述 */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .controls {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        /* 描画キャンバスに枠線をつける */
+        #drawing-board {
+            border: 2px solid #333;
+            background-color: #fff;
+            cursor: crosshair; /* マウスカーソルを十字に変更 */
+        }
+
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>シンプルなお絵かき</h1>
+
+    <div class="controls">
+        <label for="color-picker">🖊️ **色**:</label>
+        <input type="color" id="color-picker" value="#000000">
+
+        <label for="line-width">📏 **太さ**:</label>
+        <input type="range" id="line-width" min="1" max="50" value="5">
+
+        <button id="clear-button">🗑️ **全消去**</button>
+    </div>
+
+    <canvas id="drawing-board" width="800" height="600"></canvas>
+
+    <script>
+        // JavaScriptコードをここに記述
+        document.addEventListener('DOMContentLoaded', () => {
+            // 要素の取得
+            const canvas = document.getElementById('drawing-board');
+            const ctx = canvas.getContext('2d');
+            const colorPicker = document.getElementById('color-picker');
+            const clearButton = document.getElementById('clear-button');
+            const lineWidthInput = document.getElementById('line-width');
+
+            // 描画状態を管理する変数
+            let isDrawing = false;
+            let lastX = 0;
+            let lastY = 0;
+
+            // 初期描画設定
+            ctx.lineWidth = lineWidthInput.value;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = colorPicker.value;
+
+            // --- 描画関数 ---
+            function draw(e) {
+                if (!isDrawing) return;
+
+                // 描画設定の更新
+                ctx.strokeStyle = colorPicker.value;
+                ctx.lineWidth = lineWidthInput.value;
+
+                // 描画
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.stroke();
+
+                // 次の描画のために現在の座標を記録
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+            }
+
+            // --- イベントリスナーの設定 ---
+
+            // 1. 描画開始
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                [lastX, lastY] = [e.offsetX, e.offsetY];
+            });
+
+            // 2. 描画実行
+            canvas.addEventListener('mousemove', draw);
+
+            // 3. 描画終了
+            canvas.addEventListener('mouseup', () => isDrawing = false);
+            canvas.addEventListener('mouseout', () => isDrawing = false);
+
+            // 4. 全消去ボタン
+            clearButton.addEventListener('click', () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            });
+
+            // 5. 線の太さ変更 (ついでに追加しました)
+            lineWidthInput.addEventListener('input', (e) => {
+                ctx.lineWidth = e.target.value;
+            });
+
+            // タッチイベントのサポート (スマートフォン対応)
+            canvas.addEventListener('touchstart', (e) => {
+                // タッチイベントのデフォルト動作（スクロールなど）を無効化
+                e.preventDefault(); 
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+
+                isDrawing = true;
+                [lastX, lastY] = [x, y];
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (!isDrawing) return;
+
+                const touch = e.touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const x = touch.clientX - rect.left;
+                const y = touch.clientY - rect.top;
+
+                draw({ offsetX: x, offsetY: y }); // touchmoveからdraw関数を呼び出す
+            });
+
+            canvas.addEventListener('touchend', () => isDrawing = false);
+        });
+    </script>
+</body>
+</html>
