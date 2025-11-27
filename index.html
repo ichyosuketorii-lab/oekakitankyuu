@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シンプルなお絵かきアプリ</title>
+    <title>シンプルなお絵かきアプリ (画像背景付き)</title>
 
     <style>
         /* CSSコードをここに記述 */
@@ -30,7 +30,8 @@
         /* 描画キャンバスに枠線をつける */
         #drawing-board {
             border: 2px solid #333;
-            background-color: #fff;
+            /* 背景画像の設定はJavaScriptで行うため、ここでは行いません */
+            background-color: #fff; /* 画像が読み込めない場合のフォールバック */
             cursor: crosshair; /* マウスカーソルを十字に変更 */
         }
 
@@ -61,6 +62,7 @@
         <input type="range" id="line-width" min="1" max="50" value="5">
 
         <button id="clear-button">🗑️ **全消去**</button>
+        <button id="reset-image-button">🖼️ **背景を再読み込み**</button>
     </div>
 
     <canvas id="drawing-board" width="800" height="600"></canvas>
@@ -74,17 +76,58 @@
             const colorPicker = document.getElementById('color-picker');
             const clearButton = document.getElementById('clear-button');
             const lineWidthInput = document.getElementById('line-width');
+            const resetImageButton = document.getElementById('reset-image-button'); // 追加
 
             // 描画状態を管理する変数
             let isDrawing = false;
             let lastX = 0;
             let lastY = 0;
+            let backgroundImage = new Image(); // 背景画像オブジェクト
 
             // 初期描画設定
             ctx.lineWidth = lineWidthInput.value;
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
             ctx.strokeStyle = colorPicker.value;
+
+            // --- 背景画像の読み込みと描画 ---
+            const loadImageBackground = () => {
+                backgroundImage.src = 'image1.jpg'; // HTMLファイルと同じディレクトリにあることを想定
+                backgroundImage.onload = () => {
+                    // キャンバスのサイズを画像に合わせるか、画像をキャンバスにフィットさせるか選択
+                    // ここでは、キャンバスのサイズに合わせて画像を拡大縮小して描画します
+                    
+                    // キャンバスを一度クリア
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // 画像をキャンバス全体に描画 (アスペクト比を維持しつつフィットさせる)
+                    const hRatio = canvas.width / backgroundImage.width;
+                    const vRatio = canvas.height / backgroundImage.height;
+                    const ratio = Math.min(hRatio, vRatio); // 小さい方の比率に合わせて縮小
+
+                    const centerShiftX = (canvas.width - backgroundImage.width * ratio) / 2;
+                    const centerShiftY = (canvas.height - backgroundImage.height * ratio) / 2;
+
+                    ctx.drawImage(backgroundImage, 0, 0, backgroundImage.width, backgroundImage.height,
+                                    centerShiftX, centerShiftY, backgroundImage.width * ratio, backgroundImage.height * ratio);
+                    
+                    // または、画像をそのままキャンバスの左上に描画する場合は以下のコメントアウトを解除
+                    // ctx.drawImage(backgroundImage, 0, 0);
+
+                    // または、画像をキャンバス全体に引き伸ばして描画する場合は以下のコメントアウトを解除
+                    // ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+
+                };
+                backgroundImage.onerror = () => {
+                    console.error('背景画像の読み込みに失敗しました。ファイルが存在するか、パスが正しいか確認してください。');
+                    // 画像が読み込めなかった場合、背景を白に戻すなど
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                };
+            };
+
+            // アプリ起動時に背景画像を読み込む
+            loadImageBackground();
 
             // --- 描画関数 ---
             function draw(e) {
@@ -121,18 +164,24 @@
 
             // 4. 全消去ボタン
             clearButton.addEventListener('click', () => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // 背景画像を再描画してからクリア
+                loadImageBackground(); // 背景を再描画
+                // ctx.clearRect(0, 0, canvas.width, canvas.height); // これだと背景も消える
             });
 
-            // 5. 線の太さ変更 (ついでに追加しました)
+            // 5. 線の太さ変更
             lineWidthInput.addEventListener('input', (e) => {
                 ctx.lineWidth = e.target.value;
             });
 
+            // 6. 背景を再読み込みボタン (追加)
+            resetImageButton.addEventListener('click', () => {
+                loadImageBackground();
+            });
+
             // タッチイベントのサポート (スマートフォン対応)
             canvas.addEventListener('touchstart', (e) => {
-                // タッチイベントのデフォルト動作（スクロールなど）を無効化
-                e.preventDefault(); 
+                e.preventDefault();
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
                 const x = touch.clientX - rect.left;
@@ -151,7 +200,7 @@
                 const x = touch.clientX - rect.left;
                 const y = touch.clientY - rect.top;
 
-                draw({ offsetX: x, offsetY: y }); // touchmoveからdraw関数を呼び出す
+                draw({ offsetX: x, offsetY: y });
             });
 
             canvas.addEventListener('touchend', () => isDrawing = false);
